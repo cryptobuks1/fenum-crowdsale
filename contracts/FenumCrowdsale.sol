@@ -135,16 +135,6 @@ library SafeERC20 {
     _callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, value));
   }
 
-  function safeIncreaseAllowance(IERC20 token, address spender, uint256 value) internal {
-    uint256 newAllowance = token.allowance(address(this), spender).add(value);
-    _callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, newAllowance));
-  }
-
-  function safeDecreaseAllowance(IERC20 token, address spender, uint256 value) internal {
-    uint256 newAllowance = token.allowance(address(this), spender).sub(value, "SafeERC20: decreased allowance below zero");
-    _callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, newAllowance));
-  }
-
   function _callOptionalReturn(IERC20 token, bytes memory data) private {
     bytes memory returndata = address(token).functionCall(data, "SafeERC20: low-level call failed");
     if (returndata.length > 0) {
@@ -156,11 +146,6 @@ library SafeERC20 {
 abstract contract Context {
   function _msgSender() internal view virtual returns (address payable) {
     return msg.sender;
-  }
-
-  function _msgData() internal view virtual returns (bytes memory) {
-    this;
-    return msg.data;
   }
 }
 
@@ -182,11 +167,6 @@ abstract contract Ownable is Context {
   modifier onlyOwner() {
     require(_owner == _msgSender(), "Ownable: caller is not the owner");
     _;
-  }
-
-  function renounceOwnership() public virtual onlyOwner {
-    emit OwnershipTransferred(_owner, address(0));
-    _owner = address(0);
   }
 
   function transferOwnership(address newOwner) public virtual onlyOwner {
@@ -220,6 +200,7 @@ contract FenumCrowdsale is Context, Ownable, ReentrancyGuard {
   using SafeERC20 for IERC20;
   using Address for address payable;
 
+  bool private _launched;
   IERC20 private _token;
 
   // Address where funds are collected
@@ -261,26 +242,53 @@ contract FenumCrowdsale is Context, Ownable, ReentrancyGuard {
     _wallet = wallet_;
     _token = token_;
     _purchaseLimit = purchaseLimit_;
+    _launched = false;
   }
 
-  function tokensDeposit(uint256 amount) public virtual onlyOwner {
+  function launch(bool status) external onlyOwner returns (bool) {
+    return _launched = status;
+  }
+
+  function launched() public view returns (bool) {
+    return _launched;
+  }
+
+  function tokensDeposit(uint256 amount) external onlyOwner returns (bool) {
     address msgSender = _msgSender();
     _takeTokens(msgSender, amount);
     _tokensForSale = _tokensForSale.add(amount);
     emit TokensDeposited(msgSender, amount);
+    return true;
   }
 
-  function tokensWithdraw(uint256 amount) public virtual onlyOwner {
+  function tokensWithdraw(uint256 amount) external onlyOwner returns (bool) {
     address msgSender = _msgSender();
     _deliverTokens(msgSender, amount);
     _tokensForSale = _tokensForSale.sub(amount);
     emit TokensWithdrawn(msgSender, amount);
+    return true;
   }
 
-  function setRate(uint256 rate_) public virtual onlyOwner {
+  function tokensTransfer(uint256 amount) external onlyOwner returns (bool) {
+    return _token.safeTransfer(_msgSender(), amount);
+  }
+
+  /**
+   * @return the number of token units a buyer gets per wei.
+   */
+  function rate() public view returns (uint256) {
+    return _rate;
+  }
+
+  function setRate(uint256 rate_) external onlyOwner returns (bool) {
     require(rate_ > 0, "FenumCrowdsale: rate is 0");
     emit RateChanged(_rate, rate_);
     _rate = rate_;
+    return true;
+  }
+
+  function balance() public view returns (uint256) {
+    return _token.balanceOf(address(this));
   }
 
   /**
@@ -297,11 +305,10 @@ contract FenumCrowdsale is Context, Ownable, ReentrancyGuard {
     return _wallet;
   }
 
-  /**
-   * @return the number of token units a buyer gets per wei.
-   */
-  function rate() public view returns (uint256) {
-    return _rate;
+  function setWallet(address wallet_) external onlyOwner returns (bool) {
+    require(wallet_ != address(0), "FenumCrowdsale: wallet is the zero address");
+    _wallet = wallet_;
+    return true;
   }
 
   /**
@@ -353,6 +360,7 @@ contract FenumCrowdsale is Context, Ownable, ReentrancyGuard {
   }
 
   function _preValidatePurchase(address beneficiary, uint256 weiAmount, uint256 tokenAmount) internal view {
+    require(_launched = true, "FenumCrowdsale: crowdsale not launched");
     require(beneficiary != address(0), "FenumCrowdsale: beneficiary is the zero address");
     require(weiAmount != 0, "FenumCrowdsale: weiAmount is 0");
     require(tokenAmount <= _tokensForSale, "FenumCrowdsale: Not enough tokens to sell");
