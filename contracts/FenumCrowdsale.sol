@@ -406,7 +406,7 @@ contract FenumCrowdsale is Context, Ownable, ReentrancyGuard {
   }
 
   receive() external payable {
-    revert("FenumCrowdsale: contract does not accept Ether. Use buyTokens.");
+    buyTokens(_msgSender());
   }
 
   fallback() external {
