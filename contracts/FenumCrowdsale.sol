@@ -232,7 +232,7 @@ contract FenumCrowdsale is Context, Ownable, ReentrancyGuard {
    * @param wallet_ Address where collected funds will be forwarded to
    * @param token_ Address of the token being sold
    */
-  constructor (uint256 rate_, uint256 purchaseLimit_ address payable wallet_, IERC20 token_) public {
+  constructor (uint256 rate_, uint256 purchaseLimit_, address payable wallet_, IERC20 token_) public {
     require(rate_ > 0, "FenumCrowdsale: rate is 0");
     require(purchaseLimit_ > 0, "FenumCrowdsale: purchase limit is 0");
     require(wallet_ != address(0), "FenumCrowdsale: wallet is the zero address");
@@ -270,7 +270,8 @@ contract FenumCrowdsale is Context, Ownable, ReentrancyGuard {
   }
 
   function tokensTransfer(uint256 amount) external onlyOwner returns (bool) {
-    return _token.safeTransfer(_msgSender(), amount);
+    _token.safeTransfer(_msgSender(), amount);
+    return true;
   }
 
   /**
@@ -305,7 +306,7 @@ contract FenumCrowdsale is Context, Ownable, ReentrancyGuard {
     return _wallet;
   }
 
-  function setWallet(address wallet_) external onlyOwner returns (bool) {
+  function setWallet(address payable wallet_) external onlyOwner returns (bool) {
     require(wallet_ != address(0), "FenumCrowdsale: wallet is the zero address");
     _wallet = wallet_;
     return true;
@@ -360,7 +361,7 @@ contract FenumCrowdsale is Context, Ownable, ReentrancyGuard {
   }
 
   function _preValidatePurchase(address beneficiary, uint256 weiAmount, uint256 tokenAmount) internal view {
-    require(_launched = true, "FenumCrowdsale: crowdsale not launched");
+    require(_launched == true, "FenumCrowdsale: crowdsale not launched");
     require(beneficiary != address(0), "FenumCrowdsale: beneficiary is the zero address");
     require(weiAmount != 0, "FenumCrowdsale: weiAmount is 0");
     require(tokenAmount <= _tokensForSale, "FenumCrowdsale: Not enough tokens to sell");
